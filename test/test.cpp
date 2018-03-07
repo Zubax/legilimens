@@ -88,6 +88,11 @@ TEST_CASE("ProbeName")
 /// https://stackoverflow.com/questions/47241504/initialization-of-static-members-of-class-templates-with-side-effects
 TEST_CASE("ProbeCategoryRegistration")
 {
+    std::cout << "findFirstNonUniqueProbeCategoryName(): "
+              << findFirstNonUniqueProbeCategoryName().toString().c_str()
+              << std::endl;
+    REQUIRE(findFirstNonUniqueProbeCategoryName().isEmpty());
+
     REQUIRE      (findProbeCategoryByIndex(0));
     REQUIRE      (findProbeCategoryByIndex(1));
     REQUIRE      (findProbeCategoryByIndex(2));
@@ -104,6 +109,22 @@ TEST_CASE("ProbeCategoryRegistration")
     REQUIRE_FALSE(findProbeCategoryByName("\xFF\xA5"));
     REQUIRE_FALSE(findProbeCategoryByName("0123456789012345678901234567890123456789012345678901234567890123456789"
                                               "012345678901234567890123456789012345678901234567890123456789"));
+
+    struct PublicMorozov : public ProbeCategory
+    {
+        PublicMorozov() : ProbeCategory(TypeDescriptor(), "conflicting") { }
+    };
+
+    REQUIRE(findFirstNonUniqueProbeCategoryName().isEmpty());
+    PublicMorozov conflicting_a;
+
+    {
+        PublicMorozov conflicting_c;    // This is needed to test linked list removal
+        PublicMorozov conflicting_d;
+    }
+
+    PublicMorozov conflicting_b;
+    REQUIRE(findFirstNonUniqueProbeCategoryName() == "conflicting");
 }
 
 
@@ -129,12 +150,12 @@ TEST_CASE("Probe")
     REQUIRE(findProbeCategoryByName("a")->sample() == Bytes<4>{});
 
     {
-        std::array<std::uint16_t, 4> value_b{
+        std::array<std::uint16_t, 4> value_b{{
             0x1234U,
             0x4567U,
             0x89ABU,
             0xCDEFU,
-        };
+        }};
 
         LEGILIMENS_PROBE("b", value_b);
 
@@ -143,12 +164,12 @@ TEST_CASE("Probe")
         REQUIRE(findProbeCategoryByName("b")->getTypeDescriptor().element_size == 2);
         REQUIRE(findProbeCategoryByName("b")->getTypeDescriptor().kind == TypeDescriptor::Kind::Unsigned);
         REQUIRE(findProbeCategoryByName("b")->sample().size() == 8);
-        REQUIRE(findProbeCategoryByName("b")->sample() == Bytes<8>{
+        REQUIRE(findProbeCategoryByName("b")->sample() == Bytes<8>{{
             0x34, 0x12,
             0x67, 0x45,
             0xAB, 0x89,
             0xEF, 0xCD,
-        });
+        }});
     }
 }
 

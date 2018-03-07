@@ -536,7 +536,7 @@ static inline void copyBytesQuicklyAndUnsafely(std::size_t size,
  */
 class ProbeCategory
 {
-    const ProbeCategory* const next_instance_in_list_;
+    ProbeCategory* next_instance_in_list_;
 
     const TypeDescriptor type_descriptor_;
     const ProbeName name_;
@@ -557,6 +557,34 @@ protected:
         name_(arg_name)
     {
         getMutableListRoot() = this;
+    }
+
+    /**
+     * Normally, the destructor should be invoked only at the very end of the program,
+     * where we could just silently die and nobody would care. However, we still enforce correctness
+     * of the linked list for two reasons:
+     *  - general consistency;
+     *  - avoiding corruption of the list if the user ever decides to create an instance of this class themselves.
+     */
+    ~ProbeCategory()
+    {
+        if (getMutableListRoot() == this)
+        {
+            getMutableListRoot() = this->next_instance_in_list_;
+        }
+        else
+        {
+            ProbeCategory* item = getMutableListRoot();
+            while (item != nullptr)
+            {
+                if (item->next_instance_in_list_ == this)
+                {
+                    item->next_instance_in_list_ = item->next_instance_in_list_->next_instance_in_list_;
+                    break;
+                }
+            }
+            assert(item != nullptr);  // nullptr means that we traversed until the end and didn't find the object, bug
+        }
     }
 
     void pushVariable(const volatile void* location)
@@ -710,7 +738,6 @@ inline const ProbeCategory* findProbeCategoryByIndex(std::size_t index)
     {
         item = item->getNextInstance();
     }
-
     return item;
 }
 
@@ -729,11 +756,41 @@ inline const ProbeCategory* findProbeCategoryByName(const ProbeName& name)
         {
             return item;
         }
-
         item = item->getNextInstance();
     }
-
+    assert(item == nullptr);
     return nullptr;
+}
+
+/**
+ * This function traverses the list of probe categories and checks that for every existing name there is only
+ * one matching probe category. In other words, it ensures that there are no similarly named probe categories
+ * that point to variables of different types.
+ * Returns an empty string if check has passed; otherwise, returns the first conflicting name by value.
+ * Normally one may want to use it in debug builds, if it is important to ensure uniqueness of names:
+ *      assert(legilimens::findFirstNonUniqueProbeCategoryName().isEmpty());
+ * If you don't care about uniqueness, don't use this function.
+ */
+inline ProbeName findFirstNonUniqueProbeCategoryName()
+{
+    const ProbeCategory* outer = ProbeCategory::getListRoot();
+    while (outer != nullptr)
+    {
+        const ProbeCategory* inner = ProbeCategory::getListRoot();
+        while (inner != nullptr)
+        {
+            if ((inner != outer) &&
+                (inner->getName() == outer->getName()))
+            {
+                return inner->getName();
+            }
+            inner = inner->getNextInstance();
+        }
+        assert(inner == nullptr);
+        outer = outer->getNextInstance();
+    }
+    assert(outer == nullptr);
+    return {};
 }
 
 }   // namespace legilimens
