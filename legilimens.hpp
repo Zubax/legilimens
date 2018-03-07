@@ -741,6 +741,7 @@ typename Probe<CompileTimeTypeDescriptor, EncodedNameChunks...>::PublicMorozov
  * program is running. This function traverses the list and returns a pointer to the probe object at the specified
  * index. If the index is out of range, a null pointer is returned.
  */
+[[nodiscard]]
 inline const ProbeCategory* findProbeCategoryByIndex(std::size_t index)
 {
     const ProbeCategory* item = ProbeCategory::getListRoot();
@@ -757,6 +758,7 @@ inline const ProbeCategory* findProbeCategoryByIndex(std::size_t index)
  * (that is possible if they have different types), only the first one can be accessed using this function.
  * Returns null pointer if there is no ProbeCategory under this name.
  */
+[[nodiscard]]
 inline const ProbeCategory* findProbeCategoryByName(const ProbeName& name)
 {
     const ProbeCategory* item = ProbeCategory::getListRoot();
@@ -776,6 +778,7 @@ inline const ProbeCategory* findProbeCategoryByName(const ProbeName& name)
  * Number of probe category objects registered in the application.
  * This function traverses the entire linked list at every invocation.
  */
+[[nodiscard]]
 inline std::size_t countProbeCategories()
 {
     std::size_t out = 0;
@@ -798,6 +801,7 @@ inline std::size_t countProbeCategories()
  * If you don't care about uniqueness, don't use this function.
  * Beware that the complexity is quadratic of the number of probe categories! This operation is very slow.
  */
+[[nodiscard]]
 inline ProbeName findFirstNonUniqueProbeCategoryName()
 {
     const ProbeCategory* outer = ProbeCategory::getListRoot();
