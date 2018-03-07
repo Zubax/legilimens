@@ -45,6 +45,9 @@
 
 using namespace legilimens;
 
+template <std::size_t Capacity>
+using Bytes = senoval::Vector<std::uint8_t, Capacity>;
+
 
 TEST_CASE("ProbeName")
 {
@@ -75,19 +78,93 @@ TEST_CASE("ProbeName")
     REQUIRE(ProbeName("123456789").getEncodedChunks()[1] == 4066426843206293632ULL);
     REQUIRE(ProbeName("123456789").getEncodedChunks()[2] == 3993801866538139705ULL);
     REQUIRE(ProbeName("123456789").getEncodedChunks()[3] == 3921176889869212856ULL);
+
+    REQUIRE_FALSE(ProbeName::isValidName(""));
+    REQUIRE      (ProbeName::isValidName("0"));
+    REQUIRE_FALSE(ProbeName::isValidName("\x80"));
 }
 
 
-TEST_CASE("Probes")
+/// https://stackoverflow.com/questions/47241504/initialization-of-static-members-of-class-templates-with-side-effects
+TEST_CASE("ProbeCategoryRegistration")
+{
+    REQUIRE      (findProbeCategoryByIndex(0));
+    REQUIRE      (findProbeCategoryByIndex(1));
+    REQUIRE      (findProbeCategoryByIndex(2));
+    REQUIRE      (findProbeCategoryByIndex(3));
+    REQUIRE_FALSE(findProbeCategoryByIndex(4));
+    REQUIRE_FALSE(findProbeCategoryByIndex(5));
+
+    REQUIRE      (findProbeCategoryByName("a"));
+    REQUIRE      (findProbeCategoryByName("b"));
+    REQUIRE      (findProbeCategoryByName("check_exists_a"));
+    REQUIRE      (findProbeCategoryByName("check_exists_b"));
+    REQUIRE_FALSE(findProbeCategoryByName("z"));
+    REQUIRE_FALSE(findProbeCategoryByName(""));
+    REQUIRE_FALSE(findProbeCategoryByName("\xFF\xA5"));
+    REQUIRE_FALSE(findProbeCategoryByName("0123456789012345678901234567890123456789012345678901234567890123456789"
+                                              "012345678901234567890123456789012345678901234567890123456789"));
+}
+
+
+TEST_CASE("Probe")
 {
     {
         std::int32_t value_a = 0;
         LEGILIMENS_PROBE("a", value_a);
+
+        REQUIRE(findProbeCategoryByName("a")->getName() == "a");
+        REQUIRE(findProbeCategoryByName("a")->getTypeDescriptor().number_of_elements == 1);
+        REQUIRE(findProbeCategoryByName("a")->getTypeDescriptor().element_size == 4);
+        REQUIRE(findProbeCategoryByName("a")->getTypeDescriptor().kind == TypeDescriptor::Kind::Integer);
+        REQUIRE(findProbeCategoryByName("a")->sample().size() == 4);
+        REQUIRE(findProbeCategoryByName("a")->sample() == Bytes<4>{0, 0, 0, 0});
     }
 
-    REQUIRE      (findProbeCategoryByIndex(0));
-    REQUIRE_FALSE(findProbeCategoryByIndex(1));
+    REQUIRE(findProbeCategoryByName("a")->getName() == "a");
+    REQUIRE(findProbeCategoryByName("a")->getTypeDescriptor().number_of_elements == 1);
+    REQUIRE(findProbeCategoryByName("a")->getTypeDescriptor().element_size == 4);
+    REQUIRE(findProbeCategoryByName("a")->getTypeDescriptor().kind == TypeDescriptor::Kind::Integer);
+    REQUIRE(findProbeCategoryByName("a")->sample().size() == 0);
+    REQUIRE(findProbeCategoryByName("a")->sample() == Bytes<4>{});
 
-    REQUIRE      (findProbeCategoryByName("a"));
-    REQUIRE_FALSE(findProbeCategoryByName("b"));
+    {
+        std::array<std::uint16_t, 4> value_b{
+            0x1234U,
+            0x4567U,
+            0x89ABU,
+            0xCDEFU,
+        };
+
+        LEGILIMENS_PROBE("b", value_b);
+
+        REQUIRE(findProbeCategoryByName("b")->getName() == "b");
+        REQUIRE(findProbeCategoryByName("b")->getTypeDescriptor().number_of_elements == 4);
+        REQUIRE(findProbeCategoryByName("b")->getTypeDescriptor().element_size == 2);
+        REQUIRE(findProbeCategoryByName("b")->getTypeDescriptor().kind == TypeDescriptor::Kind::Unsigned);
+        REQUIRE(findProbeCategoryByName("b")->sample().size() == 8);
+        REQUIRE(findProbeCategoryByName("b")->sample() == Bytes<8>{
+            0x34, 0x12,
+            0x67, 0x45,
+            0xAB, 0x89,
+            0xEF, 0xCD,
+        });
+    }
 }
+
+
+void thisFunctionIsNeverInvoked();
+[[maybe_unused]]
+void thisFunctionIsNeverInvoked()
+{
+    (void) &thisFunctionIsNeverInvoked;
+    int a = 0;
+    LEGILIMENS_PROBE("check_exists_a", a);
+}
+
+
+struct [[maybe_unused]] ThisObjectIsNeverInstantiated
+{
+    double a = 0;
+    LEGILIMENS_PROBE("check_exists_b", a);
+};

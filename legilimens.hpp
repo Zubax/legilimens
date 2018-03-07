@@ -246,6 +246,11 @@ public:
      */
     [[nodiscard]] static constexpr bool isValidName(const char* name)
     {
+        if (*name == '\0')
+        {
+            return false;   // Empty name is not a valid name
+        }
+
         for (std::size_t i = 0; name[i] != '\0'; i++)
         {
             const volatile std::uint32_t x = std::uint32_t(name[i]);
@@ -652,8 +657,7 @@ class Probe final
         using ProbeCategory::popVariable;
     };
 
-    static PublicMorozov my_category_;
-    // Create another dummy static that will ODR-use my_category_ here?
+    static PublicMorozov this_category_;
 
 public:
     /**
@@ -664,7 +668,7 @@ public:
                    std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>, int> dummy = 0)
     {
         (void) dummy;
-        my_category_.pushVariable(static_cast<const volatile void*>(value));
+        this_category_.pushVariable(static_cast<const volatile void*>(value));
     }
 
     /**
@@ -675,12 +679,12 @@ public:
                    std::enable_if_t<!(std::is_integral_v<C> || std::is_floating_point_v<C>), int> dummy = 0)
     {
         (void) dummy;
-        my_category_.pushVariable(static_cast<const volatile void*>(cont->data()));
+        this_category_.pushVariable(static_cast<const volatile void*>(cont->data()));
     }
 
     ~Probe()
     {
-        my_category_.popVariable();
+        this_category_.popVariable();
     }
 
     // This class is non-copyable, see above
@@ -690,7 +694,7 @@ public:
 
 template <typename CompileTimeTypeDescriptor, ProbeName::EncodedChunk... EncodedNameChunks>
 typename Probe<CompileTimeTypeDescriptor, EncodedNameChunks...>::PublicMorozov
-    Probe<CompileTimeTypeDescriptor, EncodedNameChunks...>::my_category_;
+    Probe<CompileTimeTypeDescriptor, EncodedNameChunks...>::this_category_;
 
 /**
  * All ProbeCategory instances are ordered in an arbitrary but stable way; ordering is constant as long as the
