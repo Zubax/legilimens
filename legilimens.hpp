@@ -615,12 +615,22 @@ protected:
     }
 
 public:
+    /**
+     * Used for accessing and traversing the global linked list of probes. Normally, the user should not use
+     * these methods; instead, use the accessor functions defined at the namespace scope.
+     */
     [[nodiscard]] static const ProbeCategory* getListRoot() { return getMutableListRoot(); }
-
     [[nodiscard]] const ProbeCategory* getNextInstance() const { return next_instance_in_list_; }
 
+    /**
+     * Name of the probe category, i.e. name of all probes belonging to this category.
+     */
     [[nodiscard]] const ProbeName& getName() const { return name_; }
 
+    /**
+     * Type of the variable pointed to by this probe category, i.e. type of variables of all probes
+     * belonging to this category.
+     */
     [[nodiscard]] const TypeDescriptor& getTypeDescriptor() const { return type_descriptor_; }
 
     /**
@@ -763,6 +773,22 @@ inline const ProbeCategory* findProbeCategoryByName(const ProbeName& name)
 }
 
 /**
+ * Number of probe category objects registered in the application.
+ * This function traverses the entire linked list at every invocation.
+ */
+inline std::size_t countProbeCategories()
+{
+    std::size_t out = 0;
+    const ProbeCategory* item = ProbeCategory::getListRoot();
+    while (item != nullptr)
+    {
+        ++out;
+        item = item->getNextInstance();
+    }
+    return out;
+}
+
+/**
  * This function traverses the list of probe categories and checks that for every existing name there is only
  * one matching probe category. In other words, it ensures that there are no similarly named probe categories
  * that point to variables of different types.
@@ -770,6 +796,7 @@ inline const ProbeCategory* findProbeCategoryByName(const ProbeName& name)
  * Normally one may want to use it in debug builds, if it is important to ensure uniqueness of names:
  *      assert(legilimens::findFirstNonUniqueProbeCategoryName().isEmpty());
  * If you don't care about uniqueness, don't use this function.
+ * Beware that the complexity is quadratic of the number of probe categories! This operation is very slow.
  */
 inline ProbeName findFirstNonUniqueProbeCategoryName()
 {

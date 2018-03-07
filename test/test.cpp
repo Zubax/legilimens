@@ -93,6 +93,8 @@ TEST_CASE("ProbeCategoryRegistration")
               << std::endl;
     REQUIRE(findFirstNonUniqueProbeCategoryName().isEmpty());
 
+    REQUIRE(countProbeCategories() == 4);
+
     REQUIRE      (findProbeCategoryByIndex(0));
     REQUIRE      (findProbeCategoryByIndex(1));
     REQUIRE      (findProbeCategoryByIndex(2));
@@ -110,21 +112,31 @@ TEST_CASE("ProbeCategoryRegistration")
     REQUIRE_FALSE(findProbeCategoryByName("0123456789012345678901234567890123456789012345678901234567890123456789"
                                               "012345678901234567890123456789012345678901234567890123456789"));
 
-    struct PublicMorozov : public ProbeCategory
     {
-        PublicMorozov() : ProbeCategory(TypeDescriptor(), "conflicting") { }
-    };
+        struct PublicMorozov : public ProbeCategory
+        {
+            PublicMorozov() : ProbeCategory(TypeDescriptor(), "conflicting") {}
+        };
 
-    REQUIRE(findFirstNonUniqueProbeCategoryName().isEmpty());
-    PublicMorozov conflicting_a;
+        REQUIRE(findFirstNonUniqueProbeCategoryName().isEmpty());
+        PublicMorozov conflicting_a;
 
-    {
-        PublicMorozov conflicting_c;    // This is needed to test linked list removal
-        PublicMorozov conflicting_d;
+        REQUIRE(countProbeCategories() == 5);
+
+        {
+            PublicMorozov conflicting_c;    // This is needed to test linked list removal
+            REQUIRE(countProbeCategories() == 6);
+            PublicMorozov conflicting_d;
+            REQUIRE(countProbeCategories() == 7);
+        }
+
+        REQUIRE(countProbeCategories() == 5);
+        PublicMorozov conflicting_b;
+        REQUIRE(countProbeCategories() == 6);
+        REQUIRE(findFirstNonUniqueProbeCategoryName() == "conflicting");
     }
 
-    PublicMorozov conflicting_b;
-    REQUIRE(findFirstNonUniqueProbeCategoryName() == "conflicting");
+    REQUIRE(countProbeCategories() == 4);
 }
 
 
