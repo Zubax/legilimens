@@ -626,6 +626,10 @@ public:
 
         return out;
     }
+
+    // This class is non-copyable because its objects are members of a static linked list.
+    ProbeCategory(const ProbeCategory&) = delete;
+    ProbeCategory& operator=(const ProbeCategory&) = delete;
 };
 
 /**
