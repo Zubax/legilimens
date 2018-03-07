@@ -49,20 +49,20 @@ template <std::size_t Capacity>
 using Bytes = senoval::Vector<std::uint8_t, Capacity>;
 
 
-TEST_CASE("ProbeName")
+TEST_CASE("Name")
 {
-    REQUIRE(ProbeName().isEmpty());
-    REQUIRE(ProbeName().toString().empty());
+    REQUIRE(Name().isEmpty());
+    REQUIRE(Name().toString().empty());
 
-    REQUIRE(!ProbeName("123").isEmpty());
-    REQUIRE(ProbeName("123").toString() == "123");
+    REQUIRE(!Name("123").isEmpty());
+    REQUIRE(Name("123").toString() == "123");
 
-    REQUIRE      (ProbeName() == ProbeName());
-    REQUIRE_FALSE(ProbeName() != ProbeName());
-    REQUIRE      (ProbeName("123") == ProbeName("123"));
-    REQUIRE_FALSE(ProbeName("123") != ProbeName("123"));
-    REQUIRE      (ProbeName("123") != ProbeName("123456"));
-    REQUIRE_FALSE(ProbeName("123") == ProbeName("123456"));
+    REQUIRE      (Name() == Name());
+    REQUIRE_FALSE(Name() != Name());
+    REQUIRE      (Name("123") == Name("123"));
+    REQUIRE_FALSE(Name("123") != Name("123"));
+    REQUIRE      (Name("123") != Name("123456"));
+    REQUIRE_FALSE(Name("123") == Name("123456"));
 
     /*
      * >>> b = [ord(x) for x in '123456789']
@@ -73,71 +73,71 @@ TEST_CASE("ProbeName")
      * >>> out
      * 4139051819874441521
      */
-    REQUIRE(ProbeName("123456789").getEncodedChunks()[0] == 4139051819874441521ULL);
+    REQUIRE(Name("123456789").getEncodedChunks()[0] == 4139051819874441521ULL);
     // Zero termination injected after the last byte
-    REQUIRE(ProbeName("123456789").getEncodedChunks()[1] == 4066426843206293632ULL);
-    REQUIRE(ProbeName("123456789").getEncodedChunks()[2] == 3993801866538139705ULL);
-    REQUIRE(ProbeName("123456789").getEncodedChunks()[3] == 3921176889869212856ULL);
+    REQUIRE(Name("123456789").getEncodedChunks()[1] == 4066426843206293632ULL);
+    REQUIRE(Name("123456789").getEncodedChunks()[2] == 3993801866538139705ULL);
+    REQUIRE(Name("123456789").getEncodedChunks()[3] == 3921176889869212856ULL);
 
-    REQUIRE_FALSE(ProbeName::isValidName(""));
-    REQUIRE      (ProbeName::isValidName("0"));
-    REQUIRE_FALSE(ProbeName::isValidName("\x80"));
+    REQUIRE_FALSE(Name::isValidName(""));
+    REQUIRE      (Name::isValidName("0"));
+    REQUIRE_FALSE(Name::isValidName("\x80"));
 }
 
 
 /// https://stackoverflow.com/questions/47241504/initialization-of-static-members-of-class-templates-with-side-effects
-TEST_CASE("ProbeCategoryRegistration")
+TEST_CASE("CategoryRegistration")
 {
-    std::cout << "findFirstNonUniqueProbeCategoryName(): "
-              << findFirstNonUniqueProbeCategoryName().toString().c_str()
+    std::cout << "findFirstNonUniqueCategoryName(): "
+              << findFirstNonUniqueCategoryName().toString().c_str()
               << std::endl;
-    REQUIRE(findFirstNonUniqueProbeCategoryName().isEmpty());
+    REQUIRE(findFirstNonUniqueCategoryName().isEmpty());
 
-    REQUIRE(countProbeCategories() == 5);
+    REQUIRE(countCategories() == 5);
 
-    REQUIRE      (findProbeCategoryByIndex(0));
-    REQUIRE      (findProbeCategoryByIndex(1));
-    REQUIRE      (findProbeCategoryByIndex(2));
-    REQUIRE      (findProbeCategoryByIndex(3));
-    REQUIRE      (findProbeCategoryByIndex(4));
-    REQUIRE_FALSE(findProbeCategoryByIndex(5));
-    REQUIRE_FALSE(findProbeCategoryByIndex(6));
+    REQUIRE      (findCategoryByIndex(0));
+    REQUIRE      (findCategoryByIndex(1));
+    REQUIRE      (findCategoryByIndex(2));
+    REQUIRE      (findCategoryByIndex(3));
+    REQUIRE      (findCategoryByIndex(4));
+    REQUIRE_FALSE(findCategoryByIndex(5));
+    REQUIRE_FALSE(findCategoryByIndex(6));
 
-    REQUIRE      (findProbeCategoryByName("a"));
-    REQUIRE      (findProbeCategoryByName("b"));
-    REQUIRE      (findProbeCategoryByName("check_exists_a"));
-    REQUIRE      (findProbeCategoryByName("check_exists_b"));
-    REQUIRE_FALSE(findProbeCategoryByName("z"));
-    REQUIRE_FALSE(findProbeCategoryByName(""));
-    REQUIRE_FALSE(findProbeCategoryByName("\xFF\xA5"));
-    REQUIRE_FALSE(findProbeCategoryByName("0123456789012345678901234567890123456789012345678901234567890123456789"
-                                              "012345678901234567890123456789012345678901234567890123456789"));
+    REQUIRE      (findCategoryByName("a"));
+    REQUIRE      (findCategoryByName("b"));
+    REQUIRE      (findCategoryByName("check_exists_a"));
+    REQUIRE      (findCategoryByName("check_exists_b"));
+    REQUIRE_FALSE(findCategoryByName("z"));
+    REQUIRE_FALSE(findCategoryByName(""));
+    REQUIRE_FALSE(findCategoryByName("\xFF\xA5"));
+    REQUIRE_FALSE(findCategoryByName("0123456789012345678901234567890123456789012345678901234567890123456789"
+                                         "012345678901234567890123456789012345678901234567890123456789"));
 
     {
-        struct PublicMorozov : public ProbeCategory
+        struct PublicMorozov : public Category
         {
-            PublicMorozov() : ProbeCategory(TypeDescriptor(), "conflicting") {}
+            PublicMorozov() : Category(TypeDescriptor(), "conflicting") {}
         };
 
-        REQUIRE(findFirstNonUniqueProbeCategoryName().isEmpty());
+        REQUIRE(findFirstNonUniqueCategoryName().isEmpty());
         PublicMorozov conflicting_a;
 
-        REQUIRE(countProbeCategories() == 6);
+        REQUIRE(countCategories() == 6);
 
         {
             PublicMorozov conflicting_c;    // This is needed to test linked list removal
-            REQUIRE(countProbeCategories() == 7);
+            REQUIRE(countCategories() == 7);
             PublicMorozov conflicting_d;
-            REQUIRE(countProbeCategories() == 8);
+            REQUIRE(countCategories() == 8);
         }
 
-        REQUIRE(countProbeCategories() == 6);
+        REQUIRE(countCategories() == 6);
         PublicMorozov conflicting_b;
-        REQUIRE(countProbeCategories() == 7);
-        REQUIRE(findFirstNonUniqueProbeCategoryName() == "conflicting");
+        REQUIRE(countCategories() == 7);
+        REQUIRE(findFirstNonUniqueCategoryName() == "conflicting");
     }
 
-    REQUIRE(countProbeCategories() == 5);
+    REQUIRE(countCategories() == 5);
 }
 
 
@@ -147,20 +147,20 @@ TEST_CASE("Probe")
         std::int32_t value_a = 0;
         LEGILIMENS_PROBE("a", value_a);
 
-        REQUIRE(findProbeCategoryByName("a")->getName() == "a");
-        REQUIRE(findProbeCategoryByName("a")->getTypeDescriptor().number_of_elements == 1);
-        REQUIRE(findProbeCategoryByName("a")->getTypeDescriptor().element_size == 4);
-        REQUIRE(findProbeCategoryByName("a")->getTypeDescriptor().kind == TypeDescriptor::Kind::Integer);
-        REQUIRE(findProbeCategoryByName("a")->sample().size() == 4);
-        REQUIRE(findProbeCategoryByName("a")->sample() == Bytes<4>{0, 0, 0, 0});
+        REQUIRE(findCategoryByName("a")->getName() == "a");
+        REQUIRE(findCategoryByName("a")->getTypeDescriptor().number_of_elements == 1);
+        REQUIRE(findCategoryByName("a")->getTypeDescriptor().element_size == 4);
+        REQUIRE(findCategoryByName("a")->getTypeDescriptor().kind == TypeDescriptor::Kind::Integer);
+        REQUIRE(findCategoryByName("a")->sample().size() == 4);
+        REQUIRE(findCategoryByName("a")->sample() == Bytes<4>{0, 0, 0, 0});
     }
 
-    REQUIRE(findProbeCategoryByName("a")->getName() == "a");
-    REQUIRE(findProbeCategoryByName("a")->getTypeDescriptor().number_of_elements == 1);
-    REQUIRE(findProbeCategoryByName("a")->getTypeDescriptor().element_size == 4);
-    REQUIRE(findProbeCategoryByName("a")->getTypeDescriptor().kind == TypeDescriptor::Kind::Integer);
-    REQUIRE(findProbeCategoryByName("a")->sample().size() == 0);
-    REQUIRE(findProbeCategoryByName("a")->sample() == Bytes<4>{});
+    REQUIRE(findCategoryByName("a")->getName() == "a");
+    REQUIRE(findCategoryByName("a")->getTypeDescriptor().number_of_elements == 1);
+    REQUIRE(findCategoryByName("a")->getTypeDescriptor().element_size == 4);
+    REQUIRE(findCategoryByName("a")->getTypeDescriptor().kind == TypeDescriptor::Kind::Integer);
+    REQUIRE(findCategoryByName("a")->sample().size() == 0);
+    REQUIRE(findCategoryByName("a")->sample() == Bytes<4>{});
 
     {
         std::array<std::uint16_t, 4> value_b{{
@@ -172,19 +172,18 @@ TEST_CASE("Probe")
 
         LEGILIMENS_PROBE("b", value_b);
 
-        REQUIRE(findProbeCategoryByName("b")->getName() == "b");
-        REQUIRE(findProbeCategoryByName("b")->getTypeDescriptor().number_of_elements == 4);
-        REQUIRE(findProbeCategoryByName("b")->getTypeDescriptor().element_size == 2);
-        REQUIRE(findProbeCategoryByName("b")->getTypeDescriptor().kind == TypeDescriptor::Kind::Unsigned);
-        REQUIRE(findProbeCategoryByName("b")->sample().size() == 8);
-        REQUIRE(findProbeCategoryByName("b")->sample() == Bytes<8>{{
+        REQUIRE(findCategoryByName("b")->getName() == "b");
+        REQUIRE(findCategoryByName("b")->getTypeDescriptor().number_of_elements == 4);
+        REQUIRE(findCategoryByName("b")->getTypeDescriptor().element_size == 2);
+        REQUIRE(findCategoryByName("b")->getTypeDescriptor().kind == TypeDescriptor::Kind::Unsigned);
+        REQUIRE(findCategoryByName("b")->sample().size() == 8);
+        REQUIRE(findCategoryByName("b")->sample() == Bytes<8>{{
             0x34, 0x12,
             0x67, 0x45,
             0xAB, 0x89,
             0xEF, 0xCD,
         }});
     }
-
 
     {
         struct EigenLike
@@ -203,12 +202,12 @@ TEST_CASE("Probe")
 
         LEGILIMENS_PROBE("c", value_c);
 
-        REQUIRE(findProbeCategoryByName("c")->getName() == "c");
-        REQUIRE(findProbeCategoryByName("c")->getTypeDescriptor().number_of_elements == 4);
-        REQUIRE(findProbeCategoryByName("c")->getTypeDescriptor().element_size == 1);
-        REQUIRE(findProbeCategoryByName("c")->getTypeDescriptor().kind == TypeDescriptor::Kind::Unsigned);
-        REQUIRE(findProbeCategoryByName("c")->sample().size() == 4);
-        REQUIRE(findProbeCategoryByName("c")->sample() == Bytes<8>{{
+        REQUIRE(findCategoryByName("c")->getName() == "c");
+        REQUIRE(findCategoryByName("c")->getTypeDescriptor().number_of_elements == 4);
+        REQUIRE(findCategoryByName("c")->getTypeDescriptor().element_size == 1);
+        REQUIRE(findCategoryByName("c")->getTypeDescriptor().kind == TypeDescriptor::Kind::Unsigned);
+        REQUIRE(findCategoryByName("c")->sample().size() == 4);
+        REQUIRE(findCategoryByName("c")->sample() == Bytes<8>{{
             1, 2, 3, 4,
         }});
     }

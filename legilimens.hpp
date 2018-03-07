@@ -67,10 +67,10 @@
  */
 #define LEGILIMENS_PROBE(name, variable)  \
     const ::legilimens::Probe<::legilimens::impl_::CompileTimeTypeDescriptorConstructor<decltype(variable)>, \
-                              ::legilimens::ProbeName((name)).getEncodedChunks()[0], \
-                              ::legilimens::ProbeName((name)).getEncodedChunks()[1], \
-                              ::legilimens::ProbeName((name)).getEncodedChunks()[2], \
-                              ::legilimens::ProbeName((name)).getEncodedChunks()[3]> \
+                              ::legilimens::Name((name)).getEncodedChunks()[0], \
+                              ::legilimens::Name((name)).getEncodedChunks()[1], \
+                              ::legilimens::Name((name)).getEncodedChunks()[2], \
+                              ::legilimens::Name((name)).getEncodedChunks()[3]> \
         LEGILIMENS_CAT3_(_legilimens_probe_, __LINE__, _) { &(variable) }
 
 
@@ -97,7 +97,7 @@ static_assert(MaxNumberOfCoexistentProbesOfSameCategory > 0);
  * string literal into a new type. We use this new type later to create a static list of all known
  * probe names when the runtime is initializing before main().
  */
-class ProbeName
+class Name
 {
 public:
     typedef std::uint64_t EncodedChunk;
@@ -201,25 +201,25 @@ private:
     }
 
 public:
-    constexpr ProbeName() { }
+    constexpr Name() { }
 
-    constexpr ProbeName(const char* name) :     // Implicit
+    constexpr Name(const char* name) :     // Implicit
         chunks_(encode(name))
     { }
 
-    explicit ProbeName(const senoval::String<MaxLength>& name) :
+    explicit Name(const senoval::String<MaxLength>& name) :
         chunks_(encode(name.c_str()))
     { }
 
     template <typename... EncodedBlockTypes>
-    explicit constexpr ProbeName(EncodedBlockTypes... encoded_blocks) :
+    explicit constexpr Name(EncodedBlockTypes... encoded_blocks) :
         chunks_(std::forward<EncodedBlockTypes>(encoded_blocks)...)
     {
         static_assert(sizeof...(EncodedBlockTypes) == NumberOfChunks, "Wrong number of arguments");
     }
 
-    [[nodiscard]] bool operator==(const ProbeName& rhs) const { return chunks_ == rhs.chunks_; }
-    [[nodiscard]] bool operator!=(const ProbeName& rhs) const { return chunks_ != rhs.chunks_; }
+    [[nodiscard]] bool operator==(const Name& rhs) const { return chunks_ == rhs.chunks_; }
+    [[nodiscard]] bool operator!=(const Name& rhs) const { return chunks_ != rhs.chunks_; }
 
     [[nodiscard]] constexpr const Chunks& getEncodedChunks() const { return chunks_; }
 
@@ -269,7 +269,7 @@ public:
 };
 
 template <>
-inline bool ProbeName::Chunks::areChunksEqual<0>(const Chunks& rhs) const
+inline bool Name::Chunks::areChunksEqual<0>(const Chunks& rhs) const
 {
     return chunks_[0] == rhs.chunks_[0];
 }
@@ -528,30 +528,30 @@ static inline void copyBytesQuicklyAndUnsafely(std::size_t size,
 
 /**
  * A runtime (i.e. non statically typed) descriptor of a probe.
- * There is one instance of ProbeCategory per probe name and type.
+ * There is one instance of Category per probe name and type.
  * Objects of this type are non-copyable (because they are linked-listed).
  * All existing objects are only constructed before main() and exist until the program is terminated.
  * All existing objects are collected in the same linked list.
  * This Stack Overflow question is highly relevant: https://stackoverflow.com/questions/47241504/
  */
-class ProbeCategory
+class Category
 {
-    ProbeCategory* next_instance_in_list_;
+    Category* next_instance_in_list_;
 
     const TypeDescriptor type_descriptor_;
-    const ProbeName name_;
+    const Name name_;
     senoval::Vector<const volatile void*, MaxNumberOfCoexistentProbesOfSameCategory> live_variable_stack_{};
     const volatile void* live_variable_stack_top_ = nullptr;
 
-    static ProbeCategory*& getMutableListRoot()
+    static Category*& getMutableListRoot()
     {
-        static ProbeCategory* root = nullptr;
+        static Category* root = nullptr;
         return root;
     }
 
 protected:
-    ProbeCategory(const TypeDescriptor& arg_type_descriptor,
-                  const ProbeName& arg_name) :
+    Category(const TypeDescriptor& arg_type_descriptor,
+             const Name& arg_name) :
         next_instance_in_list_(getMutableListRoot()),
         type_descriptor_(arg_type_descriptor),
         name_(arg_name)
@@ -566,7 +566,7 @@ protected:
      *  - general consistency;
      *  - avoiding corruption of the list if the user ever decides to create an instance of this class themselves.
      */
-    ~ProbeCategory()
+    ~Category()
     {
         if (getMutableListRoot() == this)
         {
@@ -574,7 +574,7 @@ protected:
         }
         else
         {
-            ProbeCategory* item = getMutableListRoot();
+            Category* item = getMutableListRoot();
             while (item != nullptr)
             {
                 if (item->next_instance_in_list_ == this)
@@ -619,13 +619,13 @@ public:
      * Used for accessing and traversing the global linked list of probes. Normally, the user should not use
      * these methods; instead, use the accessor functions defined at the namespace scope.
      */
-    [[nodiscard]] static const ProbeCategory* getListRoot() { return getMutableListRoot(); }
-    [[nodiscard]] const ProbeCategory* getNextInstance() const { return next_instance_in_list_; }
+    [[nodiscard]] static const Category* getListRoot() { return getMutableListRoot(); }
+    [[nodiscard]] const Category* getNextInstance() const { return next_instance_in_list_; }
 
     /**
      * Name of the probe category, i.e. name of all probes belonging to this category.
      */
-    [[nodiscard]] const ProbeName& getName() const { return name_; }
+    [[nodiscard]] const Name& getName() const { return name_; }
 
     /**
      * Type of the variable pointed to by this probe category, i.e. type of variables of all probes
@@ -666,8 +666,8 @@ public:
     }
 
     // This class is non-copyable because its objects are members of a static linked list.
-    ProbeCategory(const ProbeCategory&) = delete;
-    ProbeCategory& operator=(const ProbeCategory&) = delete;
+    Category(const Category&) = delete;
+    Category& operator=(const Category&) = delete;
 };
 
 /**
@@ -682,21 +682,21 @@ public:
  * if necessary, the application may opt to use std::optional<> to enable copyability manually (simply destroy and
  * re-create probes whenever your object is moved).
  */
-template <typename CompileTimeTypeDescriptor, ProbeName::EncodedChunk... EncodedNameChunks>
+template <typename CompileTimeTypeDescriptor, Name::EncodedChunk... EncodedNameChunks>
 class Probe final
 {
-    static_assert(sizeof...(EncodedNameChunks) == ProbeName::NumberOfChunks,
+    static_assert(sizeof...(EncodedNameChunks) == Name::NumberOfChunks,
                   "The list of encoded name blocks is invalid.");
 
-    struct PublicMorozov final : public ProbeCategory
+    struct PublicMorozov final : public Category
     {
         PublicMorozov() :
-            ProbeCategory(CompileTimeTypeDescriptor::getRuntimeTypeDescriptor(),
-                          ProbeName(EncodedNameChunks...))
+            Category(CompileTimeTypeDescriptor::getRuntimeTypeDescriptor(),
+                     Name(EncodedNameChunks...))
         { }
 
-        using ProbeCategory::pushVariable;
-        using ProbeCategory::popVariable;
+        using Category::pushVariable;
+        using Category::popVariable;
     };
 
     static PublicMorozov this_category_;
@@ -732,19 +732,19 @@ public:
     Probe& operator=(const Probe&) = delete;
 };
 
-template <typename CompileTimeTypeDescriptor, ProbeName::EncodedChunk... EncodedNameChunks>
+template <typename CompileTimeTypeDescriptor, Name::EncodedChunk... EncodedNameChunks>
 typename Probe<CompileTimeTypeDescriptor, EncodedNameChunks...>::PublicMorozov
     Probe<CompileTimeTypeDescriptor, EncodedNameChunks...>::this_category_;
 
 /**
- * All ProbeCategory instances are ordered in an arbitrary but stable way; ordering is constant as long as the
+ * All Category instances are ordered in an arbitrary but stable way; ordering is constant as long as the
  * program is running. This function traverses the list and returns a pointer to the probe object at the specified
  * index. If the index is out of range, a null pointer is returned.
  */
 [[nodiscard]]
-inline const ProbeCategory* findProbeCategoryByIndex(std::size_t index)
+inline const Category* findCategoryByIndex(std::size_t index)
 {
-    const ProbeCategory* item = ProbeCategory::getListRoot();
+    const Category* item = Category::getListRoot();
     while ((item != nullptr) && (index --> 0))
     {
         item = item->getNextInstance();
@@ -753,15 +753,15 @@ inline const ProbeCategory* findProbeCategoryByIndex(std::size_t index)
 }
 
 /**
- * Searches the list of ProbeCategory objects by name.
+ * Searches the list of Category objects by name.
  * Returns the first probe category with a matching name. If there is more than one category under that name
  * (that is possible if they have different types), only the first one can be accessed using this function.
- * Returns null pointer if there is no ProbeCategory under this name.
+ * Returns null pointer if there is no Category under this name.
  */
 [[nodiscard]]
-inline const ProbeCategory* findProbeCategoryByName(const ProbeName& name)
+inline const Category* findCategoryByName(const Name& name)
 {
-    const ProbeCategory* item = ProbeCategory::getListRoot();
+    const Category* item = Category::getListRoot();
     while (item != nullptr)
     {
         if (item->getName() == name)
@@ -779,10 +779,10 @@ inline const ProbeCategory* findProbeCategoryByName(const ProbeName& name)
  * This function traverses the entire linked list at every invocation.
  */
 [[nodiscard]]
-inline std::size_t countProbeCategories()
+inline std::size_t countCategories()
 {
     std::size_t out = 0;
-    const ProbeCategory* item = ProbeCategory::getListRoot();
+    const Category* item = Category::getListRoot();
     while (item != nullptr)
     {
         ++out;
@@ -797,17 +797,17 @@ inline std::size_t countProbeCategories()
  * that point to variables of different types.
  * Returns an empty string if check has passed; otherwise, returns the first conflicting name by value.
  * Normally one may want to use it in debug builds, if it is important to ensure uniqueness of names:
- *      assert(legilimens::findFirstNonUniqueProbeCategoryName().isEmpty());
+ *      assert(legilimens::findFirstNonUniqueCategoryName().isEmpty());
  * If you don't care about uniqueness, don't use this function.
  * Beware that the complexity is quadratic of the number of probe categories! This operation is very slow.
  */
 [[nodiscard]]
-inline ProbeName findFirstNonUniqueProbeCategoryName()
+inline Name findFirstNonUniqueCategoryName()
 {
-    const ProbeCategory* outer = ProbeCategory::getListRoot();
+    const Category* outer = Category::getListRoot();
     while (outer != nullptr)
     {
-        const ProbeCategory* inner = ProbeCategory::getListRoot();
+        const Category* inner = Category::getListRoot();
         while (inner != nullptr)
         {
             if ((inner != outer) &&
