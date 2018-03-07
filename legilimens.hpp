@@ -408,9 +408,9 @@ static constexpr auto constructCompileTimeTypeDescriptor()
     }
     else
     {
-        return CompileTimeTypeDescriptor<TypeDescriptor::deduceKind<ContainerElementType<T>>(),
-                                         ContainerElementSize<T>,
-                                         getContainerSize<T>()>();
+        return CompileTimeTypeDescriptor<TypeDescriptor::deduceKind<ContainerElementType<std::decay_t<T>>>(),
+                                         ContainerElementSize<std::decay_t<T>>,
+                                         getContainerSize<std::decay_t<T>>()>();
     }
 }
 

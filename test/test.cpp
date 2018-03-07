@@ -200,7 +200,9 @@ TEST_CASE("Probe")
         value_c[2] = 3;
         value_c[3] = 4;
 
-        LEGILIMENS_PROBE("c", value_c);
+        auto getter = [&]() -> const EigenLike& { return value_c; };
+
+        LEGILIMENS_PROBE("c", getter());
 
         REQUIRE(findCategoryByName("c")->getName() == "c");
         REQUIRE(findCategoryByName("c")->getTypeDescriptor().number_of_elements == 4);
