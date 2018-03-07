@@ -76,3 +76,18 @@ TEST_CASE("ProbeName")
     REQUIRE(ProbeName("123456789").getEncodedChunks()[2] == 3993801866538139705ULL);
     REQUIRE(ProbeName("123456789").getEncodedChunks()[3] == 3921176889869212856ULL);
 }
+
+
+TEST_CASE("Probes")
+{
+    {
+        std::int32_t value_a = 0;
+        LEGILIMENS_PROBE("a", value_a);
+    }
+
+    REQUIRE      (findProbeCategoryByIndex(0));
+    REQUIRE_FALSE(findProbeCategoryByIndex(1));
+
+    REQUIRE      (findProbeCategoryByName("a"));
+    REQUIRE_FALSE(findProbeCategoryByName("b"));
+}

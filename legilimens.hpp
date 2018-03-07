@@ -66,7 +66,7 @@
  * https://stackoverflow.com/questions/47263565/expanding-a-constexpr-array-into-a-set-of-non-type-template-parameters
  */
 #define LEGILIMENS_PROBE(name, variable)  \
-    const ::legilimens::Probe<::legilimens::CompileTimeTypeDescriptorConstructor<decltype(variable)>, \
+    const ::legilimens::Probe<::legilimens::impl_::CompileTimeTypeDescriptorConstructor<decltype(variable)>, \
                               ::legilimens::ProbeName((name)).getEncodedChunks()[0], \
                               ::legilimens::ProbeName((name)).getEncodedChunks()[1], \
                               ::legilimens::ProbeName((name)).getEncodedChunks()[2], \
@@ -205,6 +205,10 @@ public:
 
     constexpr ProbeName(const char* name) :     // Implicit
         chunks_(encode(name))
+    { }
+
+    explicit ProbeName(const senoval::String<MaxLength>& name) :
+        chunks_(encode(name.c_str()))
     { }
 
     template <typename... EncodedBlockTypes>
@@ -352,6 +356,8 @@ template <TypeDescriptor::Kind ElementKind,
           std::size_t NumberOfElements>
 struct CompileTimeTypeDescriptor
 {
+    static_assert(ElementSize > 0, "Element size must be positive");
+    static_assert(NumberOfElements > 0, "Number of elements must be positive");
     static_assert((ElementSize * NumberOfElements) <= MaxVariableSize, "The type is too large to be traceable");
 
     /**
@@ -391,7 +397,7 @@ static constexpr std::enable_if_t<(Container::SizeAtCompileTime > 0), std::size_
 template <typename T>
 static constexpr auto constructCompileTimeTypeDescriptor()
 {
-    if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>)
+    if constexpr (std::is_integral_v<std::decay_t<T>> || std::is_floating_point_v<std::decay_t<T>>)
     {
         return CompileTimeTypeDescriptor<TypeDescriptor::deduceKind<T>(), sizeof(std::decay_t<T>), 1>();
     }
@@ -442,14 +448,16 @@ static_assert(CompileTimeTypeDescriptorConstructor<std::uint64_t>::getRuntimeTyp
 static_assert(CompileTimeTypeDescriptorConstructor<std::uint64_t>::getRuntimeTypeDescriptor().kind ==
               TypeDescriptor::Kind::Unsigned);
 
-static_assert(CompileTimeTypeDescriptorConstructor<std::int32_t>::getRuntimeTypeDescriptor().element_size == 4);
-static_assert(CompileTimeTypeDescriptorConstructor<std::int32_t>::getRuntimeTypeDescriptor().number_of_elements == 1);
-static_assert(CompileTimeTypeDescriptorConstructor<std::int32_t>::getRuntimeTypeDescriptor().kind ==
-              TypeDescriptor::Kind::Integer);
+static_assert(CompileTimeTypeDescriptorConstructor<const volatile std::int32_t&>::getRuntimeTypeDescriptor()
+                  .element_size == 4);
+static_assert(CompileTimeTypeDescriptorConstructor<const volatile std::int32_t&>::getRuntimeTypeDescriptor()
+                  .number_of_elements == 1);
+static_assert(CompileTimeTypeDescriptorConstructor<const volatile std::int32_t&>::getRuntimeTypeDescriptor()
+                  .kind == TypeDescriptor::Kind::Integer);
 
-static_assert(CompileTimeTypeDescriptorConstructor<float>::getRuntimeTypeDescriptor().element_size == sizeof(float));
-static_assert(CompileTimeTypeDescriptorConstructor<float>::getRuntimeTypeDescriptor().number_of_elements == 1);
-static_assert(CompileTimeTypeDescriptorConstructor<float>::getRuntimeTypeDescriptor().kind ==
+static_assert(CompileTimeTypeDescriptorConstructor<float&>::getRuntimeTypeDescriptor().element_size == sizeof(float));
+static_assert(CompileTimeTypeDescriptorConstructor<float&>::getRuntimeTypeDescriptor().number_of_elements == 1);
+static_assert(CompileTimeTypeDescriptorConstructor<float&>::getRuntimeTypeDescriptor().kind ==
               TypeDescriptor::Kind::Real);
 
 static_assert(CompileTimeTypeDescriptorConstructor<std::array<std::int16_t, 3>>::getRuntimeTypeDescriptor()
@@ -582,12 +590,18 @@ public:
 
     [[nodiscard]] const TypeDescriptor& getTypeDescriptor() const { return type_descriptor_; }
 
+    /**
+     * Collects the data from the variable and returns it as an array of bytes.
+     * Returns an empty array if no such variable exists at this moment.
+     */
     [[nodiscard]] senoval::Vector<std::uint8_t, MaxVariableSize> sample() const
     {
         const std::size_t data_size = type_descriptor_.element_size * type_descriptor_.number_of_elements;
         assert(data_size <= MaxVariableSize);       // The size constraint is imposed at compile time also
         senoval::Vector<std::uint8_t, MaxVariableSize> out(data_size, 0);
+        bool success = false;
 
+        // The critical section must be as short as possible!
         {
             CriticalSectionLocker locker;
             (void) locker;
@@ -596,7 +610,13 @@ public:
                 impl_::copyBytesQuicklyAndUnsafely(data_size,
                                                    static_cast<const volatile std::uint8_t*>(live_variable_stack_top_),
                                                    out.data());
+                success = true;
             }
+        }
+
+        if (!success)
+        {
+            out.clear();    // It is important to move this out of the critical section
         }
 
         return out;
@@ -640,8 +660,10 @@ public:
      * Constructor for primitive scalar types.
      */
     template <typename T>
-    explicit Probe(const std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>, T>* value)
+    explicit Probe(const T* value,
+                   std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>, int> dummy = 0)
     {
+        (void) dummy;
         my_category_.pushVariable(static_cast<const volatile void*>(value));
     }
 
@@ -649,8 +671,10 @@ public:
      * Constructor for containers that provide .data() const.
      */
     template <typename C, typename E = impl_::ContainerElementType<C>>
-    explicit Probe(const std::enable_if_t<std::is_integral_v<E> || std::is_floating_point_v<E>, C>* cont)
+    explicit Probe(const C* cont,
+                   std::enable_if_t<!(std::is_integral_v<C> || std::is_floating_point_v<C>), int> dummy = 0)
     {
+        (void) dummy;
         my_category_.pushVariable(static_cast<const volatile void*>(cont->data()));
     }
 
@@ -667,6 +691,44 @@ public:
 template <typename CompileTimeTypeDescriptor, ProbeName::EncodedChunk... EncodedNameChunks>
 typename Probe<CompileTimeTypeDescriptor, EncodedNameChunks...>::PublicMorozov
     Probe<CompileTimeTypeDescriptor, EncodedNameChunks...>::my_category_;
+
+/**
+ * All ProbeCategory instances are ordered in an arbitrary but stable way; ordering is constant as long as the
+ * program is running. This function traverses the list and returns a pointer to the probe object at the specified
+ * index. If the index is out of range, a null pointer is returned.
+ */
+inline const ProbeCategory* findProbeCategoryByIndex(std::size_t index)
+{
+    const ProbeCategory* item = ProbeCategory::getListRoot();
+    while ((item != nullptr) && (index --> 0))
+    {
+        item = item->getNextInstance();
+    }
+
+    return item;
+}
+
+/**
+ * Searches the list of ProbeCategory objects by name.
+ * Returns the first probe category with a matching name. If there is more than one category under that name
+ * (that is possible if they have different types), only the first one can be accessed using this function.
+ * Returns null pointer if there is no ProbeCategory under this name.
+ */
+inline const ProbeCategory* findProbeCategoryByName(const ProbeName& name)
+{
+    const ProbeCategory* item = ProbeCategory::getListRoot();
+    while (item != nullptr)
+    {
+        if (item->getName() == name)
+        {
+            return item;
+        }
+
+        item = item->getNextInstance();
+    }
+
+    return nullptr;
+}
 
 }   // namespace legilimens
 
