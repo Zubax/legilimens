@@ -665,9 +665,8 @@ public:
      */
     template <typename T>
     explicit Probe(const T* value,
-                   std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>, int> dummy = 0)
+                   std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>, int> = 0)
     {
-        (void) dummy;
         this_category_.pushVariable(static_cast<const volatile void*>(value));
     }
 
@@ -676,9 +675,8 @@ public:
      */
     template <typename C, typename E = impl_::ContainerElementType<C>>
     explicit Probe(const C* cont,
-                   std::enable_if_t<!(std::is_integral_v<C> || std::is_floating_point_v<C>), int> dummy = 0)
+                   std::enable_if_t<!(std::is_integral_v<C> || std::is_floating_point_v<C>), int> = 0)
     {
-        (void) dummy;
         this_category_.pushVariable(static_cast<const volatile void*>(cont->data()));
     }
 
