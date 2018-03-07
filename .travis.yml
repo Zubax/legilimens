@@ -1,0 +1,31 @@
+sudo: required
+dist: trusty
+
+matrix:
+  include:
+    - language: cpp
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-7
+      script:
+        - CC=gcc-7 && CXX=g++-7 && cd test/ && cmake . && make
+        - ./legilimens_test --rng-seed time
+
+    - language: cpp
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-trusty-5.0
+          packages:
+            - clang-5.0
+            - libstdc++-7-dev   # This package contains the C++ standard library used by Clang-5.0
+      script:
+        - clang++-5.0 -E -x c++ - -v < /dev/null    # Print the Clang configuration for troubleshooting purposes
+        - cd test/
+        - cmake -DCMAKE_C_COMPILER=clang-5.0 -DCMAKE_CXX_COMPILER=clang++-5.0 .
+        - make
+        - ./legilimens_test --rng-seed time

@@ -1,0 +1,3 @@
+[submodule "test/senoval"]
+	path = test/senoval
+	url = https://github.com/Zubax/senoval
