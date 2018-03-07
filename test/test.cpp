@@ -93,14 +93,15 @@ TEST_CASE("ProbeCategoryRegistration")
               << std::endl;
     REQUIRE(findFirstNonUniqueProbeCategoryName().isEmpty());
 
-    REQUIRE(countProbeCategories() == 4);
+    REQUIRE(countProbeCategories() == 5);
 
     REQUIRE      (findProbeCategoryByIndex(0));
     REQUIRE      (findProbeCategoryByIndex(1));
     REQUIRE      (findProbeCategoryByIndex(2));
     REQUIRE      (findProbeCategoryByIndex(3));
-    REQUIRE_FALSE(findProbeCategoryByIndex(4));
+    REQUIRE      (findProbeCategoryByIndex(4));
     REQUIRE_FALSE(findProbeCategoryByIndex(5));
+    REQUIRE_FALSE(findProbeCategoryByIndex(6));
 
     REQUIRE      (findProbeCategoryByName("a"));
     REQUIRE      (findProbeCategoryByName("b"));
@@ -121,22 +122,22 @@ TEST_CASE("ProbeCategoryRegistration")
         REQUIRE(findFirstNonUniqueProbeCategoryName().isEmpty());
         PublicMorozov conflicting_a;
 
-        REQUIRE(countProbeCategories() == 5);
+        REQUIRE(countProbeCategories() == 6);
 
         {
             PublicMorozov conflicting_c;    // This is needed to test linked list removal
-            REQUIRE(countProbeCategories() == 6);
-            PublicMorozov conflicting_d;
             REQUIRE(countProbeCategories() == 7);
+            PublicMorozov conflicting_d;
+            REQUIRE(countProbeCategories() == 8);
         }
 
-        REQUIRE(countProbeCategories() == 5);
-        PublicMorozov conflicting_b;
         REQUIRE(countProbeCategories() == 6);
+        PublicMorozov conflicting_b;
+        REQUIRE(countProbeCategories() == 7);
         REQUIRE(findFirstNonUniqueProbeCategoryName() == "conflicting");
     }
 
-    REQUIRE(countProbeCategories() == 4);
+    REQUIRE(countProbeCategories() == 5);
 }
 
 
@@ -181,6 +182,34 @@ TEST_CASE("Probe")
             0x67, 0x45,
             0xAB, 0x89,
             0xEF, 0xCD,
+        }});
+    }
+
+
+    {
+        struct EigenLike
+        {
+            std::uint8_t storage[4]{};
+            const std::uint8_t* data() const { return &storage[0]; }
+            std::uint8_t& operator[](std::size_t index) { return storage[index]; }
+            enum { SizeAtCompileTime = sizeof(storage) / sizeof(storage[0]) };
+        };
+
+        EigenLike value_c;
+        value_c[0] = 1;
+        value_c[1] = 2;
+        value_c[2] = 3;
+        value_c[3] = 4;
+
+        LEGILIMENS_PROBE("c", value_c);
+
+        REQUIRE(findProbeCategoryByName("c")->getName() == "c");
+        REQUIRE(findProbeCategoryByName("c")->getTypeDescriptor().number_of_elements == 4);
+        REQUIRE(findProbeCategoryByName("c")->getTypeDescriptor().element_size == 1);
+        REQUIRE(findProbeCategoryByName("c")->getTypeDescriptor().kind == TypeDescriptor::Kind::Unsigned);
+        REQUIRE(findProbeCategoryByName("c")->sample().size() == 4);
+        REQUIRE(findProbeCategoryByName("c")->sample() == Bytes<8>{{
+            1, 2, 3, 4,
         }});
     }
 }
