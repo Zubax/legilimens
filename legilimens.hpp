@@ -86,6 +86,7 @@ namespace legilimens
 static_assert(std::is_default_constructible_v<CriticalSectionLocker>);
 static_assert(MaxVariableSize > 0);
 static_assert(MaxNumberOfCoexistentProbesOfSameCategory > 0);
+static_assert(std::is_trivially_copyable_v<std::decay_t<decltype(getTimeFromCriticalSection())>>);
 
 /**
  * Short variable name, allows for very fast name matching (virtually a few cycles).
@@ -534,6 +535,13 @@ static inline void copyBytesQuicklyAndUnsafely(std::size_t size,
 using SampledBytes = senoval::Vector<std::uint8_t, MaxVariableSize>;
 
 /**
+ * Every sample is time stamped by the library. The type of the timestamp is defined by the return type
+ * of the user-provided function getTimeFromCriticalSection().
+ * The return type must be copyable.
+ */
+using Timestamp = std::decay_t<decltype(getTimeFromCriticalSection())>;
+
+/**
  * A runtime (i.e. non statically typed) descriptor of a probe.
  * There is one instance of Category per probe name and type.
  * Objects of this type are non-copyable (because they are linked-listed).
@@ -641,20 +649,25 @@ public:
     [[nodiscard]] const TypeDescriptor& getTypeDescriptor() const { return type_descriptor_; }
 
     /**
-     * Collects the data from the variable and returns it as an array of bytes.
-     * Returns an empty array if no such variable exists at this moment.
+     * Collects the data from the variable and returns it as an array of bytes with timestamp.
+     * The returned array will be empty if no such variable exists at this moment.
+     * The returned timestamp is always valid.
      */
-    [[nodiscard]] SampledBytes sample() const
+    [[nodiscard]] std::pair<Timestamp, SampledBytes> sample() const
     {
         const std::size_t data_size = type_descriptor_.element_size * type_descriptor_.number_of_elements;
         assert(data_size <= MaxVariableSize);       // The size constraint is imposed at compile time also
+        Timestamp ts{};
         SampledBytes out(data_size, 0);
         bool success = false;
 
-        // The critical section must be as short as possible!
+        // The critical section must be as short as possible! It also must be atomic, obviously.
         {
             CriticalSectionLocker locker;
             (void) locker;
+
+            ts = getTimeFromCriticalSection();
+
             if (live_variable_stack_top_ != nullptr)
             {
                 impl_::copyBytesQuicklyAndUnsafely(data_size,
@@ -669,7 +682,7 @@ public:
             out.clear();    // It is important to move this out of the critical section
         }
 
-        return out;
+        return {ts, out};
     }
 
     // This class is non-copyable because its objects are members of a static linked list.

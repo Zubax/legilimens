@@ -43,6 +43,18 @@
 #include "catch.hpp"
 
 
+namespace legilimens
+{
+
+static std::uint64_t g_mock_time = 0;
+
+std::uint64_t getTimeFromCriticalSection()
+{
+    return g_mock_time;
+}
+
+}
+
 using namespace legilimens;
 
 template <std::size_t Capacity>
@@ -143,6 +155,8 @@ TEST_CASE("CategoryRegistration")
 
 TEST_CASE("Probe")
 {
+    g_mock_time = 123456;
+
     {
         std::int32_t value_a = 0;
         LEGILIMENS_PROBE("a", value_a);
@@ -151,16 +165,22 @@ TEST_CASE("Probe")
         REQUIRE(findCategoryByName("a")->getTypeDescriptor().number_of_elements == 1);
         REQUIRE(findCategoryByName("a")->getTypeDescriptor().element_size == 4);
         REQUIRE(findCategoryByName("a")->getTypeDescriptor().kind == TypeDescriptor::Kind::Integer);
-        REQUIRE(findCategoryByName("a")->sample().size() == 4);
-        REQUIRE(findCategoryByName("a")->sample() == Bytes<4>{0, 0, 0, 0});
+        REQUIRE(findCategoryByName("a")->sample().first == g_mock_time);
+        REQUIRE(findCategoryByName("a")->sample().second.size() == 4);
+        REQUIRE(findCategoryByName("a")->sample().second == Bytes<4>{0, 0, 0, 0});
     }
+
+    g_mock_time = 654321;
 
     REQUIRE(findCategoryByName("a")->getName() == "a");
     REQUIRE(findCategoryByName("a")->getTypeDescriptor().number_of_elements == 1);
     REQUIRE(findCategoryByName("a")->getTypeDescriptor().element_size == 4);
     REQUIRE(findCategoryByName("a")->getTypeDescriptor().kind == TypeDescriptor::Kind::Integer);
-    REQUIRE(findCategoryByName("a")->sample().size() == 0);
-    REQUIRE(findCategoryByName("a")->sample() == Bytes<4>{});
+    REQUIRE(findCategoryByName("a")->sample().first == g_mock_time);
+    REQUIRE(findCategoryByName("a")->sample().second.size() == 0);
+    REQUIRE(findCategoryByName("a")->sample().second == Bytes<4>{});
+
+    g_mock_time = 987123;
 
     {
         std::array<std::uint16_t, 4> value_b{{
@@ -176,14 +196,17 @@ TEST_CASE("Probe")
         REQUIRE(findCategoryByName("b")->getTypeDescriptor().number_of_elements == 4);
         REQUIRE(findCategoryByName("b")->getTypeDescriptor().element_size == 2);
         REQUIRE(findCategoryByName("b")->getTypeDescriptor().kind == TypeDescriptor::Kind::Unsigned);
-        REQUIRE(findCategoryByName("b")->sample().size() == 8);
-        REQUIRE(findCategoryByName("b")->sample() == Bytes<8>{{
+        REQUIRE(findCategoryByName("b")->sample().first == g_mock_time);
+        REQUIRE(findCategoryByName("b")->sample().second.size() == 8);
+        REQUIRE(findCategoryByName("b")->sample().second == Bytes<8>{{
             0x34, 0x12,
             0x67, 0x45,
             0xAB, 0x89,
             0xEF, 0xCD,
         }});
     }
+
+    g_mock_time = 321789;
 
     {
         struct EigenLike
@@ -208,8 +231,9 @@ TEST_CASE("Probe")
         REQUIRE(findCategoryByName("c")->getTypeDescriptor().number_of_elements == 4);
         REQUIRE(findCategoryByName("c")->getTypeDescriptor().element_size == 1);
         REQUIRE(findCategoryByName("c")->getTypeDescriptor().kind == TypeDescriptor::Kind::Unsigned);
-        REQUIRE(findCategoryByName("c")->sample().size() == 4);
-        REQUIRE(findCategoryByName("c")->sample() == Bytes<8>{{
+        REQUIRE(findCategoryByName("c")->sample().first == g_mock_time);
+        REQUIRE(findCategoryByName("c")->sample().second.size() == 4);
+        REQUIRE(findCategoryByName("c")->sample().second == Bytes<8>{{
             1, 2, 3, 4,
         }});
     }

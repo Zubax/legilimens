@@ -48,4 +48,16 @@ constexpr std::size_t MaxVariableSize = 256;
  */
 constexpr std::size_t MaxNumberOfCoexistentProbesOfSameCategory = 10;
 
+/**
+ * This function is invoked by the library whenever it samples a value, in order to time stamp the sample.
+ * The function is ALWAYS invoked from within a critical section, see @ref CriticalSectionLocker.
+ * The return type can be arbitrary, as long as it is copyable. The same type will be used by the sampling function.
+ * For example, a popular definition is as follows:
+ *
+ *  std::chrono::nanoseconds getTimeFromCriticalSection();
+ *
+ * The Legilimens library will take note and make all timestamps typed as std::chrono::nanoseconds.
+ */
+std::uint64_t getTimeFromCriticalSection();
+
 }
