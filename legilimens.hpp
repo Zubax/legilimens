@@ -130,11 +130,11 @@ private:
     public:
         constexpr Chunks() { }
 
-        template <typename... EncodedBlockTypes>
-        constexpr Chunks(EncodedBlockTypes... encoded_blocks) :
-            chunks_{encoded_blocks...}
+        template <typename... EncodedChunkTypes>
+        explicit constexpr Chunks(EncodedChunkTypes... encoded_chunks) :
+            chunks_{encoded_chunks...}
         {
-            static_assert(sizeof...(EncodedBlockTypes) == NumberOfChunks, "Wrong number of arguments");
+            static_assert(sizeof...(EncodedChunkTypes) == NumberOfChunks, "Wrong number of arguments");
         }
 
         constexpr EncodedChunk& operator[](const std::size_t index)
@@ -207,16 +207,16 @@ public:
         chunks_(encode(name))
     { }
 
-    explicit Name(const senoval::String<MaxLength>& name) :
+    template <std::size_t Capacity>
+    explicit Name(const senoval::String<Capacity>& name) :
         chunks_(encode(name.c_str()))
     { }
 
-    template <typename... EncodedBlockTypes>
-    explicit constexpr Name(EncodedBlockTypes... encoded_blocks) :
-        chunks_(std::forward<EncodedBlockTypes>(encoded_blocks)...)
-    {
-        static_assert(sizeof...(EncodedBlockTypes) == NumberOfChunks, "Wrong number of arguments");
-    }
+    /// The first argument is typed explicitly in order to prevent ambiguity with String constructors
+    template <typename... EncodedChunkTypes>
+    explicit constexpr Name(const EncodedChunk head, EncodedChunkTypes... tail) :
+        chunks_(head, tail...)
+    { }
 
     [[nodiscard]] bool operator==(const Name& rhs) const { return chunks_ == rhs.chunks_; }
     [[nodiscard]] bool operator!=(const Name& rhs) const { return chunks_ != rhs.chunks_; }
@@ -527,6 +527,12 @@ static inline void copyBytesQuicklyAndUnsafely(std::size_t size,
 } // namespace impl_
 
 /**
+ * Alias for a fixed-capacity stack-backed vector of bytes that is used to keep sampled data.
+ * An empty vector is used to represent un-sampleable variable.
+ */
+using SampledBytes = senoval::Vector<std::uint8_t, MaxVariableSize>;
+
+/**
  * A runtime (i.e. non statically typed) descriptor of a probe.
  * There is one instance of Category per probe name and type.
  * Objects of this type are non-copyable (because they are linked-listed).
@@ -637,11 +643,11 @@ public:
      * Collects the data from the variable and returns it as an array of bytes.
      * Returns an empty array if no such variable exists at this moment.
      */
-    [[nodiscard]] senoval::Vector<std::uint8_t, MaxVariableSize> sample() const
+    [[nodiscard]] SampledBytes sample() const
     {
         const std::size_t data_size = type_descriptor_.element_size * type_descriptor_.number_of_elements;
         assert(data_size <= MaxVariableSize);       // The size constraint is imposed at compile time also
-        senoval::Vector<std::uint8_t, MaxVariableSize> out(data_size, 0);
+        SampledBytes out(data_size, 0);
         bool success = false;
 
         // The critical section must be as short as possible!
