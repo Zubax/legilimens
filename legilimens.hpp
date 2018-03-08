@@ -309,19 +309,19 @@ struct TypeDescriptor
                (number_of_elements  == rhs.number_of_elements);
     }
 
-    template <typename ScalarType>
+    template <typename T>
     [[nodiscard]] constexpr static Kind deduceKind()
     {
-        using T = std::decay_t<ScalarType>;
-        static_assert(std::is_integral_v<T> || std::is_floating_point_v<T>);
+        using D = std::decay_t<T>;
+        static_assert(std::is_integral_v<D> || std::is_floating_point_v<D>);
 
-        if constexpr (std::is_same_v<T, bool>)
+        if constexpr (std::is_same_v<D, bool>)
         {
             return Kind::Boolean;
         }
-        else if constexpr (std::is_integral_v<T>)
+        else if constexpr (std::is_integral_v<D>)
         {
-            if constexpr (std::is_signed_v<T>)
+            if constexpr (std::is_signed_v<D>)
             {
                 return Kind::Integer;
             }
@@ -330,7 +330,7 @@ struct TypeDescriptor
                 return Kind::Unsigned;
             }
         }
-        else if constexpr (std::is_floating_point_v<T>)
+        else if constexpr (std::is_floating_point_v<D>)
         {
             return Kind::Real;
         }
@@ -402,15 +402,16 @@ static constexpr std::enable_if_t<(Container::SizeAtCompileTime > 0), std::size_
 template <typename T>
 static constexpr auto constructCompileTimeTypeDescriptor()
 {
-    if constexpr (std::is_integral_v<std::decay_t<T>> || std::is_floating_point_v<std::decay_t<T>>)
+    using D = std::decay_t<T>;
+    if constexpr (std::is_integral_v<D> || std::is_floating_point_v<D>)
     {
-        return CompileTimeTypeDescriptor<TypeDescriptor::deduceKind<T>(), sizeof(std::decay_t<T>), 1>();
+        return CompileTimeTypeDescriptor<TypeDescriptor::deduceKind<D>(), sizeof(D), 1>();
     }
     else
     {
-        return CompileTimeTypeDescriptor<TypeDescriptor::deduceKind<ContainerElementType<std::decay_t<T>>>(),
-                                         ContainerElementSize<std::decay_t<T>>,
-                                         getContainerSize<std::decay_t<T>>()>();
+        return CompileTimeTypeDescriptor<TypeDescriptor::deduceKind<ContainerElementType<D>>(),
+                                         ContainerElementSize<D>,
+                                         getContainerSize<D>()>();
     }
 }
 
