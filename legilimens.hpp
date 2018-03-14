@@ -618,6 +618,12 @@ protected:
         CriticalSectionLocker locker;
         (void) locker;
 
+        // If an assertion failure is triggered from pop_back(), then this Category instance was
+        // constructed after a Probe instance tried to use it. That causes the variable stack container to be
+        // initialized after it's been pushed already, therefore it will be made empty again, and the value
+        // that it contained will be lost. That ultimately leads to an attempt to pop an empty stack at the end.
+        // However, I've taken steps to prevent the situation described above from happening, so the user should
+        // never encounter this problem.
         live_variable_stack_.pop_back();
         if (!live_variable_stack_.empty())
         {
@@ -719,7 +725,20 @@ class Probe final
         using Category::popVariable;
     };
 
-    static PublicMorozov this_category_;
+    static PublicMorozov* getThisCategory()
+    {
+        static PublicMorozov instance;
+        return &instance;
+    }
+
+    /*
+     * We can't just declare a static instance of PublicMorozov, because the C++ runtime won't be able to guarantee
+     * that the static instance is constructed by the time we use it. For example, this may happen if our Probe<>
+     * instance is a static instance itself - in that case, the runtime may attempt to construct Probe<> before the
+     * static instance of PublicMorozov contained within itself is initialized. That WILL lead to horrible bugs.
+     * Usage of a pointer imposes a constraint that requires the runtime to initialize PublicMorozov first.
+     */
+    static PublicMorozov* this_category_;
 
 public:
     /**
@@ -729,7 +748,11 @@ public:
     explicit Probe(const T* value,
                    std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>, int> = 0)
     {
-        this_category_.pushVariable(static_cast<const volatile void*>(value));
+        if (this_category_ == nullptr)
+        {
+            this_category_ = getThisCategory();
+        }
+        this_category_->pushVariable(static_cast<const volatile void*>(value));
     }
 
     /**
@@ -739,12 +762,16 @@ public:
     explicit Probe(const C* cont,
                    std::enable_if_t<!(std::is_integral_v<C> || std::is_floating_point_v<C>), int> = 0)
     {
-        this_category_.pushVariable(static_cast<const volatile void*>(cont->data()));
+        if (this_category_ == nullptr)
+        {
+            this_category_ = getThisCategory();
+        }
+        this_category_->pushVariable(static_cast<const volatile void*>(cont->data()));
     }
 
     ~Probe()
     {
-        this_category_.popVariable();
+        this_category_->popVariable();
     }
 
     // This class is non-copyable, see above
@@ -753,8 +780,9 @@ public:
 };
 
 template <typename CompileTimeTypeDescriptor, Name::EncodedChunk... EncodedNameChunks>
-typename Probe<CompileTimeTypeDescriptor, EncodedNameChunks...>::PublicMorozov
-    Probe<CompileTimeTypeDescriptor, EncodedNameChunks...>::this_category_;
+typename Probe<CompileTimeTypeDescriptor, EncodedNameChunks...>::PublicMorozov*
+    Probe<CompileTimeTypeDescriptor, EncodedNameChunks...>::this_category_ =
+    Probe<CompileTimeTypeDescriptor, EncodedNameChunks...>::getThisCategory();
 
 /**
  * All Category instances are ordered in an arbitrary but stable way; ordering is constant as long as the

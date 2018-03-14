@@ -60,6 +60,17 @@ using namespace legilimens;
 template <std::size_t Capacity>
 using Bytes = senoval::Vector<std::uint8_t, Capacity>;
 
+namespace
+{
+/*
+ * Checking static initialization.
+ * If the Category constructor is invoked after the probe is initialized, we'll get an assertion failure at
+ * the exit because it would appear as if the probe attempted to pop the variable stack while it's empty.
+ */
+float g_static_value = 123.456F;
+LEGILIMENS_PROBE("static", g_static_value);
+}
+
 
 TEST_CASE("Name")
 {
@@ -105,20 +116,22 @@ TEST_CASE("CategoryRegistration")
               << std::endl;
     REQUIRE(findFirstNonUniqueCategoryName().isEmpty());
 
-    REQUIRE(countCategories() == 5);
+    REQUIRE(countCategories() == 6);
 
     REQUIRE      (findCategoryByIndex(0));
     REQUIRE      (findCategoryByIndex(1));
     REQUIRE      (findCategoryByIndex(2));
     REQUIRE      (findCategoryByIndex(3));
     REQUIRE      (findCategoryByIndex(4));
-    REQUIRE_FALSE(findCategoryByIndex(5));
+    REQUIRE      (findCategoryByIndex(5));
     REQUIRE_FALSE(findCategoryByIndex(6));
+    REQUIRE_FALSE(findCategoryByIndex(7));
 
     REQUIRE      (findCategoryByName("a"));
     REQUIRE      (findCategoryByName("b"));
     REQUIRE      (findCategoryByName("check_exists_a"));
     REQUIRE      (findCategoryByName("check_exists_b"));
+    REQUIRE      (findCategoryByName("static"));
     REQUIRE_FALSE(findCategoryByName("z"));
     REQUIRE_FALSE(findCategoryByName(""));
     REQUIRE_FALSE(findCategoryByName("\xFF\xA5"));
@@ -134,22 +147,22 @@ TEST_CASE("CategoryRegistration")
         REQUIRE(findFirstNonUniqueCategoryName().isEmpty());
         PublicMorozov conflicting_a;
 
-        REQUIRE(countCategories() == 6);
+        REQUIRE(countCategories() == 7);
 
         {
             PublicMorozov conflicting_c;    // This is needed to test linked list removal
-            REQUIRE(countCategories() == 7);
-            PublicMorozov conflicting_d;
             REQUIRE(countCategories() == 8);
+            PublicMorozov conflicting_d;
+            REQUIRE(countCategories() == 9);
         }
 
-        REQUIRE(countCategories() == 6);
-        PublicMorozov conflicting_b;
         REQUIRE(countCategories() == 7);
+        PublicMorozov conflicting_b;
+        REQUIRE(countCategories() == 8);
         REQUIRE(findFirstNonUniqueCategoryName() == "conflicting");
     }
 
-    REQUIRE(countCategories() == 5);
+    REQUIRE(countCategories() == 6);
 }
 
 
