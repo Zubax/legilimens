@@ -37,12 +37,24 @@
 
 /*
  * User-provided library config header.
- * The following definitions must be provided (all in the "legilimens" namespace):
+ * A comprehensive list of definitions with sensible default values and documentation is provided in the
+ * demo config header supplied for the unit tests. Below is an abridged overview:
  *
- *  CriticalSectionLocker - a RAII class that is instantiated when the library performs atomic operations.
- *                          If not required, make it an empty struct, e.g.: struct CriticalSectionLocker { };
+ *  CriticalSectionLocker
+ *      A RAII class that is instantiated (without arguments) when the library performs atomic operations.
+ *      If not required, make it an empty struct, e.g.: struct CriticalSectionLocker { };
  *
- *  constexpr std::size_t MaxVariableSize - maximum size of a traceable variable.
+ *  constexpr std::size_t MaxVariableSize
+ *      Maximum size of a traceable variable. If uncertain, use 256.
+ *
+ *  constexpr std::size_t MaxNumberOfCoexistentProbesOfSameCategory
+ *      How many probes of the same category (sharing the same name and type) may exist at the same time.
+ *      If uncertain, use 10.
+ *
+ *  std::uint64_t getTimeFromCriticalSection()
+ *      A function that is invoked by Legilimens from a critical section when it needs to time stamp a sample.
+ *      The return type can be arbitrary, as long as it is copyable. Normally you would use std::uint64_t or
+ *      std::chrono::nanoseconds. This function is always invoked from within a critical section.
  */
 #include <legilimens_config.hpp>
 
