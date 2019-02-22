@@ -132,3 +132,56 @@ it does not contain variable-complexity routines.
 Use JetBrains CLion or whatever you're into. Use the `test` directory as the project root.
 
 This is how you test: `cd test && cmake . && make && ./legilimens_test`
+
+## Examples
+
+### Brief excerpt from a real application
+
+```c++
+class SeriousBusinessLogic
+{
+    // <snip>
+
+    CurrentPIController pid_i_d_;
+    CurrentPIController pid_i_q_;
+    Vector<2> setpoint_unconstrained_u_dq_ = Vector<2>::Zero();
+    Vector<2> setpoint_constrained_u_dq_   = Vector<2>::Zero();
+    mutable Vector<3> setpoint_u_abc_      = Vector<3>::Zero();
+
+    LEGILIMENS_PROBE("motor.u_dq_uncn_setpoint",           setpoint_unconstrained_u_dq_);
+    LEGILIMENS_PROBE("motor.u_dq_cons_setpoint",           setpoint_constrained_u_dq_);
+    LEGILIMENS_PROBE("motor.phase_voltage_setpoint",       setpoint_u_abc_);
+    LEGILIMENS_PROBE("motor.i_d_pid.error_integral",       pid_i_d_.getIntegral());
+    LEGILIMENS_PROBE("motor.i_q_pid.error_integral",       pid_i_q_.getIntegral());
+
+public:
+    // <snip>
+};
+```
+
+```c++
+void processRegisterDataRequest(const RegisterDataRequestMessage& request, ResponseSender sender)
+{
+    RegisterDataResponseMessage response;
+    response.name = request.name;
+    if (const auto probe_cat = legilimens::findCategoryByName(legilimens::Name(name)))
+    {
+        const auto [timestamp, sample] = probe_cat->sample();
+        convertLegilimensSampleToPopcopRegister(probe_cat->getTypeDescriptor(), sample, response.value);
+        response.timestamp = duration_cast<popcop::standard::Timestamp>(timestamp.time_since_epoch());
+    }
+    response.encode(StreamEmitter(StandardFrameTypeCode, sender).begin());
+}
+
+void processRegisterDiscoveryRequest(const RegisterDiscoveryRequestMessage& request, ResponseSender sender)
+{
+    RegisterDiscoveryResponseMessage response;
+    response.index = request.index;
+    if (const auto cat = legilimens::findCategoryByIndex(request.index))
+    {
+        response.name = cat->getName().toString();
+    }
+    response.encode(StreamEmitter(StandardFrameTypeCode, sender).begin());
+}
+```
+
