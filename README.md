@@ -98,7 +98,7 @@ void accessExample()
     // even if their traced values don't exist at the time of calling.
     assert(legilimens::findCategoryByName("my_class.a"));  // Non-null even if there are no instances of MyClass
     assert(legilimens::findCategoryByName("foo.local"));   // Non-null even if foo() is never invoked
-    assert(legilimens::findCategoryByIndex(3));            // Non-null because there are >3 probes
+    assert(legilimens::findCategoryByIndex(3));            // Non-null because there are >3 probe categories
 }
 ```
 
