@@ -126,3 +126,9 @@ high-reliability applications.
 
 Legilimens is time-deterministic and memory-deterministic;
 it does not contain variable-complexity routines.
+
+## Development
+
+Use JetBrains CLion or whatever you're into. Use the `test` directory as the project root.
+
+This is how you test: `cd test && cmake . && make && ./legilimens_test`
