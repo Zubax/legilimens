@@ -34,6 +34,7 @@
 #include <cstddef>
 #include <type_traits>
 #include <tuple>
+#include <array>
 
 /*
  * User-provided library config header.

@@ -116,6 +116,7 @@ Legilimens requires a full-featured C++17 compiler with the following standard l
 - `cstddef`
 - `type_traits`
 - `tuple`
+- `array`
 
 Legilimens requires Senoval: <https://github.com/Zubax/senoval>, which is a simple header-only dependency-free
 C++ utility library for deeply embedded systems. Think of it as a robust replacement of `std::vector`
