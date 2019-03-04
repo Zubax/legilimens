@@ -134,6 +134,8 @@ Use JetBrains CLion or whatever you're into. Use the `test` directory as the pro
 
 This is how you test: `cd test && cmake . && make && ./legilimens_test`
 
+The code must follow the [Zubax Coding Conventions](https://kb.zubax.com/x/84Ah).
+
 ## Examples
 
 ### Brief excerpt from a real application
